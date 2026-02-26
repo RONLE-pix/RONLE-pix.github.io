@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Ortak Foto Galeri</title>
+
+<style>
+body{
+    background:#0f0f0f;
+    font-family:Arial;
+    color:white;
+    padding:20px;
+}
+
+input, button{
+    padding:8px;
+    margin:5px 0;
+    border-radius:6px;
+    border:none;
+}
+
+button{
+    background:#7b2ff7;
+    color:white;
+    cursor:pointer;
+}
+
+.gallery{
+    display:grid;
+    grid-template-columns:repeat(auto-fill,minmax(150px,1fr));
+    gap:15px;
+    margin-top:20px;
+}
+
+.card{
+    background:#1a1a1a;
+    padding:10px;
+    border-radius:10px;
+    text-align:center;
+}
+
+.card img{
+    width:100%;
+    height:120px;
+    object-fit:cover;
+    border-radius:8px;
+}
+</style>
+</head>
+
+<body>
+
+<h2>Ortak Fotoğraf Galerisi</h2>
+
+<input type="file" id="fileInput" accept="image/*"><br>
+<input type="text" id="imageName" placeholder="Fotoğraf ismi"><br>
+<button onclick="uploadImage()">Yükle</button>
+
+<br><br>
+<input type="text" placeholder="Ara..." oninput="searchImage(this.value)">
+
+<div class="gallery" id="gallery"></div>
+
+<script type="module">
+
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+import { getFirestore, collection, addDoc, getDocs } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+import { getStorage, ref, uploadBytes, getDownloadURL } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-storage.js";
+
+const firebaseConfig = {
+  apiKey: "BURAYA_API_KEY",
+  authDomain: "BURAYA_AUTH_DOMAIN",
+  projectId: "BURAYA_PROJECT_ID",
+  storageBucket: "BURAYA_STORAGE_BUCKET",
+  messagingSenderId: "BURAYA_ID",
+  appId: "BURAYA_APP_ID"
+};
+
+const app = initializeApp(firebaseConfig);
+const db = getFirestore(app);
+const storage = getStorage(app);
+
+let images = [];
+
+async function uploadImage(){
+    const file = document.getElementById("fileInput").files[0];
+    const name = document.getElementById("imageName").value;
+
+    if(!file || !name){
+        alert("Dosya ve isim gir!");
+        return;
+    }
+
+    const storageRef = ref(storage, "images/" + file.name);
+    await uploadBytes(storageRef, file);
+    const url = await getDownloadURL(storageRef);
+
+    await addDoc(collection(db, "images"), {
+        name: name.toLowerCase(),
+        url: url
+    });
+
+    location.reload();
+}
+
+async function loadImages(){
+    const querySnapshot = await getDocs(collection(db, "images"));
+    images = [];
+    querySnapshot.forEach((doc) => {
+        images.push(doc.data());
+    });
+    displayImages(images);
+}
+
+function displayImages(list){
+    const gallery = document.getElementById("gallery");
+    gallery.innerHTML = "";
+
+    list.forEach(img=>{
+        gallery.innerHTML += `
+            <div class="card">
+                <img src="${img.url}">
+                <p>${img.name}</p>
+            </div>
+        `;
+    });
+}
+
+function searchImage(value){
+    const filtered = images.filter(img => img.name.includes(value.toLowerCase()));
+    displayImages(filtered);
+}
+
+loadImages();
+
+</script>
+
+</body>
+</html>
